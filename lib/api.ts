@@ -1,8 +1,6 @@
 // Base URL for API requests
-//  const API_BASE_URL = "http://localhost:5000/api/v1"
-  const API_BASE_URL = "https://digital-menu-backend-8a4t.onrender.com/api/v1"
-//const API_BASE_URL = "http://192.168.11.83:5000/api/v1"
-
+// const API_BASE_URL = "http://localhost:5000/api/v1"
+const API_BASE_URL = "https://digital-menu-backend-8a4t.onrender.com/api/v1"
 
 // Default fetch options
 const defaultOptions: RequestInit = {
@@ -306,7 +304,11 @@ export interface OrderItem {
   item: MenuItem | string // Can be populated with MenuItem or just the ID
   quantity: number
   price: number
-  customizations?: any[]
+  customizations?: Array<{
+    option_name: string
+    selection: string
+    price_addition: number
+  }>
 }
 
 // Order type definition
@@ -317,6 +319,11 @@ export interface Order {
   items: OrderItem[]
   total_amount: number
   status: "pending" | "preparing" | "served" | "complete" | "cancelled"
+  payment_status?: "pending" | "paid" | "refunded" | "failed"
+  payment_method?: "cash" | "card" | "esewa" | "not_paid"
+  payment_transaction_id?: string
+  payment_id?: string
+  payment_date?: string
   created_at: string
   updated_at: string
 }
@@ -329,11 +336,13 @@ export interface OrderInput {
     quantity: number
     price: number
     customizations?: Array<{
-      group: string
-      option: string
+      option_name: string
+      selection: string
+      price_addition: number
     }>
   }[]
   total_amount: number
+  payment_method?: string // Add payment method
 }
 
 // Order update input
@@ -342,7 +351,11 @@ export interface OrderUpdateInput {
     item: string // MenuItem ID
     quantity: number
     price: number
-    customizations?: any[]
+    customizations?: Array<{
+      option_name: string
+      selection: string
+      price_addition: number
+    }>
   }[]
   total_amount?: number
 }
@@ -406,3 +419,108 @@ export const orderApi = {
   },
 }
 
+// Add this new statistics API section after the existing API functions
+
+// Statistics API functions
+export const statsApi = {
+  // Get dashboard statistics
+  getDashboardStats: async (): Promise<any> => {
+    return apiRequest("/stats/dashboard")
+  },
+
+  // Get daily revenue data
+  getDailyRevenue: async (): Promise<any> => {
+    return apiRequest("/stats/daily-revenue")
+  },
+
+  // Get weekly revenue data
+  getWeeklyRevenue: async (): Promise<any> => {
+    return apiRequest("/stats/weekly-revenue")
+  },
+
+  // Get monthly revenue data
+  getMonthlyRevenue: async (): Promise<any> => {
+    return apiRequest("/stats/monthly-revenue")
+  },
+
+  // Get most sold items
+  getMostSoldItems: async (): Promise<any> => {
+    return apiRequest("/stats/most-sold-items")
+  },
+
+  // Get revenue by category
+  getRevenueByCategory: async (): Promise<any> => {
+    return apiRequest("/stats/revenue-by-category")
+  },
+
+  // Get year-over-year growth
+  getYearOverYearGrowth: async (): Promise<any> => {
+    return apiRequest("/stats/year-over-year")
+  },
+
+  // Get order status distribution
+  getOrderStatusDistribution: async (): Promise<any> => {
+    return apiRequest("/stats/order-status")
+  },
+
+  // Get payment method distribution
+  getPaymentMethodDistribution: async (): Promise<any> => {
+    return apiRequest("/stats/payment-methods")
+  },
+
+  // Get hourly order distribution
+  getHourlyOrderDistribution: async (): Promise<any> => {
+    return apiRequest("/stats/hourly-distribution")
+  },
+}
+
+// Payment type definitions
+export interface PaymentVerifyResponse {
+  success: boolean
+  msg: string
+  order?: any
+  payment?: any
+}
+
+export interface PaymentStatusResponse {
+  success: boolean
+  paymentStatus: string
+  paymentMethod: string
+  paymentId?: string
+  paymentDate?: string
+}
+
+// Payment-specific API functions
+export const paymentApi = {
+  // Initiate payment
+  initiatePayment: async (orderId: string, amount: number): Promise<any> => {
+    try {
+      return apiRequest("/payments/initiate", {
+        method: "POST",
+        body: JSON.stringify({ orderId, amount }),
+      })
+    } catch (error) {
+      console.error("Payment initiation API error:", error)
+      // Don't throw here, we'll continue with client-side signature generation
+      return { success: false, msg: error instanceof Error ? error.message : "Failed to initiate payment" }
+    }
+  },
+
+  // Verify payment after eSewa callback
+  verifyPayment: async (data: string): Promise<PaymentVerifyResponse> => {
+    return apiRequest(`/payments/verify?data=${encodeURIComponent(data)}`)
+  },
+
+  // Get payment status for an order
+  getPaymentStatus: async (orderId: string): Promise<PaymentStatusResponse> => {
+    return apiRequest(`/payments/status/${orderId}`)
+  },
+
+  // Process cash payment
+  processCashPayment: async (orderId: string): Promise<PaymentVerifyResponse> => {
+    return apiRequest("/payments/cash", {
+      method: "POST",
+      body: JSON.stringify({ orderId }),
+    })
+  },
+}

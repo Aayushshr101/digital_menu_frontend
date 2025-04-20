@@ -26,6 +26,7 @@ import {
   type OrderInput,
 } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
+import { PaymentForm } from "@/components/payment-form"
 
 export default function MenuPage() {
   const router = useRouter()
@@ -53,6 +54,10 @@ export default function MenuPage() {
   const [currentCustomizeItem, setCurrentCustomizeItem] = useState<MenuItem | null>(null)
   const [selectedOptions, setSelectedOptions] = useState<Record<string, { name: string; price: number }>>({})
   const [customizationPrice, setCustomizationPrice] = useState(0)
+
+  // Payment related states
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
 
   // Fetch table, categories, and menu items on component mount
   useEffect(() => {
@@ -225,9 +230,19 @@ export default function MenuPage() {
     })
   }
 
+  // Change the placeOrder function to show payment options first without creating the order
   const placeOrder = async () => {
     if (!table || cart.length === 0) return
 
+    // Calculate total amount
+    const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+    // Show payment form without creating the order yet
+    setShowPaymentForm(true)
+  }
+
+  // Add a new function to create the order after payment method is selected
+  const createOrder = async (paymentMethod: string) => {
     setIsPlacingOrder(true)
     try {
       // Prepare order items with customizations
@@ -255,33 +270,54 @@ export default function MenuPage() {
         table: table._id,
         items: orderItems,
         total_amount: totalAmount,
+        payment_method: paymentMethod, // Add payment method to order
       }
 
       console.log("Sending order:", orderInput)
 
       // Place order
       const { order } = await orderApi.createOrder(orderInput)
+      console.log("Order created successfully:", order)
+
+      // Set the current order ID
+      setCurrentOrderId(order._id)
 
       // Show success message
       toast({
-        title: "Order Placed",
-        description: "Your order has been placed successfully!",
+        title: "Order Created",
+        description: "Your order has been created successfully!",
       })
 
-      // Clear cart
-      setCart([])
+      // For cash payment, redirect to confirmation page
+      if (paymentMethod === "cash") {
+        // Clear cart
+        setCart([])
 
-      // Redirect directly to order details page
-      router.push(`/order/${order._id}`)
+        // Redirect to order confirmation
+        router.push(`/order-confirmation?orderId=${order._id}`)
+      }
+
+      // Return the order ID for eSewa payment
+      return order._id
     } catch (error) {
-      console.error("Failed to place order:", error)
+      console.error("Failed to create order:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to place order. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create order. Please try again.",
         variant: "destructive",
       })
+      return null
     } finally {
       setIsPlacingOrder(false)
+    }
+  }
+
+  // Handle payment cancellation
+  const handlePaymentCancel = () => {
+    setShowPaymentForm(false)
+    if (currentOrderId) {
+      // Redirect to order confirmation without payment
+      router.push(`/order-confirmation?orderId=${currentOrderId}`)
     }
   }
 
@@ -586,7 +622,17 @@ export default function MenuPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentForm} onOpenChange={setShowPaymentForm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Your Order</DialogTitle>
+            <DialogDescription>Choose your payment method to complete your order.</DialogDescription>
+          </DialogHeader>
+          <PaymentForm amount={totalPrice} onCancel={handlePaymentCancel} onCreateOrder={createOrder} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-
