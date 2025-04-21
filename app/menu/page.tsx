@@ -288,13 +288,13 @@ export default function MenuPage() {
         description: "Your order has been created successfully!",
       })
 
-      // For cash payment, redirect to confirmation page
+      // For cash payment, redirect directly to order status page
       if (paymentMethod === "cash") {
         // Clear cart
         setCart([])
 
-        // Redirect to order confirmation
-        router.push(`/order-confirmation?orderId=${order._id}`)
+        // Redirect directly to order status page
+        router.push(`/order/${order._id}`)
       }
 
       // Return the order ID for eSewa payment

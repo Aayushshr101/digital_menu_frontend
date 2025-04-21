@@ -1,22 +1,30 @@
 "use client"
 
+import { DialogFooter } from "@/components/ui/dialog"
+
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Home, Plus, Minus, Clock, CheckCircle, AlertCircle, ChefHat, Utensils } from "lucide-react"
+import {
+  ArrowLeft,
+  Home,
+  Plus,
+  Minus,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  ChefHat,
+  Utensils,
+  QrCode,
+  Bell,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { orderApi, menuApi, tableApi, type Order, type MenuItem, type Table } from "@/lib/api"
@@ -52,9 +60,18 @@ export default function OrderDetailsPage() {
       customOptions?: Record<string, { name: string; price: number }>
     }[]
   >([])
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false)
+  const [isWaiterCalled, setIsWaiterCalled] = useState(false)
 
   // Add a new state variable to track if we're refreshing data
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Add this function to find the QR code with any extension
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+
+  // Enhance the order status page to include a success message for new orders
+  // Add this near the top of the component, after the useState declarations
+  const [isNewOrder, setIsNewOrder] = useState(false)
 
   // Fetch order details on component mount
   useEffect(() => {
@@ -90,6 +107,49 @@ export default function OrderDetailsPage() {
       fetchOrderDetails()
     }
   }, [orderId, toast])
+
+  // Add this to the useEffect that fetches order data
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        const { order } = await orderApi.getOrder(params.id)
+        setOrder(order)
+
+        // Check if this is a new order (created in the last minute)
+        if (order.created_at) {
+          const orderTime = new Date(order.created_at).getTime()
+          const currentTime = new Date().getTime()
+          const timeDiff = currentTime - orderTime
+          // If order was created less than 60 seconds ago, show success message
+          setIsNewOrder(timeDiff < 60000)
+        }
+
+        // Fetch table details if available
+        if (order.table) {
+          const tableId = typeof order.table === "string" ? order.table : order.table._id
+          const { table } = await tableApi.getTable(tableId)
+          setTable(table)
+        }
+
+        // Also fetch menu items for adding to order
+        await fetchMenuItems()
+      } catch (error) {
+        console.error("Failed to fetch order details:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load order details. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (params.id) {
+      fetchData()
+    }
+  }, [params.id, toast])
 
   // Add this useEffect for polling after the existing useEffect that fetches order details
   useEffect(() => {
@@ -128,10 +188,46 @@ export default function OrderDetailsPage() {
     return () => clearInterval(intervalId)
   }, [order, orderId, toast])
 
+  // Add this useEffect to find the current QR code when dialog opens
+  useEffect(() => {
+    if (!isQrDialogOpen) return
+
+    // Function to check if a file exists
+    const checkFileExists = async (filename: string) => {
+      try {
+        const response = await fetch(`/${filename}?t=${Date.now()}`, { method: "HEAD" })
+        return response.ok
+      } catch (error) {
+        return false
+      }
+    }
+
+    // Check for common image extensions
+    const checkQrCode = async () => {
+      const extensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]
+
+      for (const ext of extensions) {
+        const exists = await checkFileExists(`payment-qr${ext}`)
+        if (exists) {
+          setQrCodeUrl(`/payment-qr${ext}?t=${Date.now()}`)
+          return
+        }
+      }
+
+      // Fallback to generic QR code if no custom one is found
+      setQrCodeUrl(
+        `/generic-payment-qr.png?height=200&width=200&query=QR code for payment of Rs${order?.total_amount.toFixed(2)}`,
+      )
+    }
+
+    checkQrCode()
+  }, [isQrDialogOpen, order?.total_amount])
+
   // Fetch menu items for adding to order
   const fetchMenuItems = async () => {
     try {
       // Fetch categories
+      // const categoriesResponse = await fetch("http://localhost:5000/api/v1/categories")
       const categoriesResponse = await fetch("https://digital-menu-backend-8a4t.onrender.com/api/v1/categories")
       const categoriesData = await categoriesResponse.json()
 
@@ -396,6 +492,21 @@ export default function OrderDetailsPage() {
     }
   }
 
+  const callWaiter = () => {
+    // In a real application, this would send a notification to the staff
+    // For now, we'll just show a toast and update the state
+    toast({
+      title: "Waiter Called",
+      description: "A waiter will be with you shortly.",
+    })
+    setIsWaiterCalled(true)
+
+    // Reset the state after 30 seconds
+    setTimeout(() => {
+      setIsWaiterCalled(false)
+    }, 30000)
+  }
+
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0)
   const totalCartPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
@@ -433,6 +544,17 @@ export default function OrderDetailsPage() {
           </div>
         </div>
       </header>
+      {isNewOrder && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+          <div className="flex items-center">
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+            <p className="text-green-700 font-medium">Your order has been placed successfully!</p>
+          </div>
+          <p className="text-green-600 mt-1 text-sm">
+            Your order is being prepared. Please wait at your table and our staff will serve you shortly.
+          </p>
+        </div>
+      )}
       <main className="flex-1 container py-8">
         <div className="flex items-center mb-6">
           <Link href="/">
@@ -464,9 +586,42 @@ export default function OrderDetailsPage() {
                   <p className="ml-3">{getStatusText(order.status)}</p>
                 </div>
 
+                {/* Payment Method Badge */}
                 <div className="mb-4">
-                  <p className="text-sm text-muted-foreground">Order placed on</p>
-                  <p className="font-medium">{formatDate(order.created_at)}</p>
+                  <p className="text-sm text-muted-foreground">Payment Method</p>
+                  <div className="flex items-center mt-1">
+                    <Badge
+                      variant="outline"
+                      className={
+                        order.payment_method === "online_payment"
+                          ? "bg-blue-100 text-blue-800 border-blue-300"
+                          : "bg-green-100 text-green-800 border-green-300"
+                      }
+                    >
+                      {order.payment_method === "online_payment" ? "QR Code Payment" : "Cash Payment"}
+                    </Badge>
+
+                    {order.payment_method === "online_payment" && (
+                      <Button variant="ghost" size="sm" className="ml-2" onClick={() => setIsQrDialogOpen(true)}>
+                        <QrCode className="h-4 w-4 mr-1" /> View QR
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Payment Status Badge */}
+                <div className="mb-4">
+                  <p className="text-sm text-muted-foreground">Payment Status</p>
+                  <Badge
+                    variant="outline"
+                    className={
+                      order.payment_status === "paid"
+                        ? "bg-green-100 text-green-800 border-green-300"
+                        : "bg-yellow-100 text-yellow-800 border-yellow-300"
+                    }
+                  >
+                    {order.payment_status === "paid" ? "Paid" : "Pending"}
+                  </Badge>
                 </div>
 
                 <Separator className="my-4" />
@@ -505,12 +660,23 @@ export default function OrderDetailsPage() {
                   <span>Rs{order.total_amount.toFixed(2)}</span>
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex flex-col gap-3">
                 {order.status !== "complete" && order.status !== "cancelled" && (
                   <Button className="w-full" onClick={() => setIsAddItemSheetOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" /> Add More Items
                   </Button>
                 )}
+
+                {/* Call Waiter Button */}
+                <Button
+                  variant={isWaiterCalled ? "outline" : "secondary"}
+                  className="w-full"
+                  onClick={callWaiter}
+                  disabled={isWaiterCalled}
+                >
+                  <Bell className="mr-2 h-4 w-4" />
+                  {isWaiterCalled ? "Waiter Called" : "Call Waiter for Payment"}
+                </Button>
               </CardFooter>
             </Card>
           </div>
@@ -836,7 +1002,44 @@ export default function OrderDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>QR Code Payment</DialogTitle>
+            <DialogDescription>Scan this QR code to pay for your order</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 flex flex-col items-center">
+            <div className="border p-4 rounded-md bg-white">
+              {qrCodeUrl && (
+                <Image
+                  src={qrCodeUrl || "/placeholder.svg"}
+                  alt="Payment QR Code"
+                  width={200}
+                  height={200}
+                  className="mx-auto"
+                  unoptimized // Important to allow dynamic URLs
+                />
+              )}
+            </div>
+            <div className="mt-4 text-center">
+              <p className="font-medium">Total Amount: Rs{order.total_amount.toFixed(2)}</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                After payment, please show the confirmation to the waiter
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsQrDialogOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={callWaiter}>
+              <Bell className="mr-2 h-4 w-4" /> Call Waiter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-

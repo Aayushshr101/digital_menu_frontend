@@ -495,14 +495,19 @@ export const paymentApi = {
   // Initiate payment
   initiatePayment: async (orderId: string, amount: number): Promise<any> => {
     try {
-      return apiRequest("/payments/initiate", {
+      console.log("Calling backend to initiate payment for order:", orderId, "amount:", amount)
+      return await apiRequest("/payments/initiate", {
         method: "POST",
         body: JSON.stringify({ orderId, amount }),
       })
     } catch (error) {
       console.error("Payment initiation API error:", error)
       // Don't throw here, we'll continue with client-side signature generation
-      return { success: false, msg: error instanceof Error ? error.message : "Failed to initiate payment" }
+      return {
+        success: false,
+        msg: error instanceof Error ? error.message : "Failed to initiate payment",
+        error: error,
+      }
     }
   },
 
@@ -523,4 +528,45 @@ export const paymentApi = {
       body: JSON.stringify({ orderId }),
     })
   },
+}
+
+// Add this function to the existing api.ts file
+
+// Function to upload QR code image
+export const uploadQrCode = async (
+  file: File,
+): Promise<{ success: boolean; imageUrl?: string; filename?: string; error?: string }> => {
+  try {
+    // Create a FormData object
+    const formData = new FormData()
+    formData.append("qrImage", file)
+
+    // Send the file to our API route
+    const response = await fetch("/api/upload-qr", {
+      method: "POST",
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    if (!data.success) {
+      throw new Error(data.error || "Upload failed")
+    }
+
+    return {
+      success: true,
+      imageUrl: data.imageUrl,
+      filename: data.filename,
+    }
+  } catch (error) {
+    console.error("Error uploading QR code:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to upload QR code",
+    }
+  }
 }

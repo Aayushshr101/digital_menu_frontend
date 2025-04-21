@@ -1,9 +1,23 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import type React from "react"
+
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { statsApi } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { QrCode, Upload } from "lucide-react"
+import { statsApi, uploadQrCode } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 
 // Import FusionCharts
@@ -28,6 +42,16 @@ export default function AdminDashboardPage() {
   const [orderStatus, setOrderStatus] = useState<any>(null)
   const [paymentMethods, setPaymentMethods] = useState<any>(null)
   const [hourlyDistribution, setHourlyDistribution] = useState<any>(null)
+
+  // QR Code upload states
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false)
+  const [qrImage, setQrImage] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Add this function to check for the current QR code
+  const [currentQrUrl, setCurrentQrUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -83,6 +107,129 @@ export default function AdminDashboardPage() {
 
     fetchDashboardData()
   }, [toast])
+
+  // Add this useEffect to find the current QR code
+  useEffect(() => {
+    // Function to check if a file exists
+    const checkFileExists = async (filename: string) => {
+      try {
+        const response = await fetch(`/${filename}?t=${Date.now()}`, { method: "HEAD" })
+        return response.ok
+      } catch (error) {
+        return false
+      }
+    }
+
+    // Check for common image extensions
+    const checkQrCode = async () => {
+      const extensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]
+
+      for (const ext of extensions) {
+        const exists = await checkFileExists(`payment-qr${ext}`)
+        if (exists) {
+          setCurrentQrUrl(`/payment-qr${ext}?t=${Date.now()}`)
+          return
+        }
+      }
+
+      setCurrentQrUrl(null)
+    }
+
+    checkQrCode()
+  }, [isQrDialogOpen]) // Re-check when dialog closes
+
+  // Handle QR code image change
+  const handleQrImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid File",
+          description: "Please select an image file",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Validate file size (2MB limit)
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: "QR code image must be less than 2MB",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setQrImage(file)
+
+      // Create preview URL
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setPreviewUrl(event.target.result as string)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Handle QR code upload
+  const handleQrUpload = async () => {
+    if (!qrImage) {
+      toast({
+        title: "No Image Selected",
+        description: "Please select a QR code image to upload",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsUploading(true)
+
+    try {
+      // Use the uploadQrCode function from our API
+      const result = await uploadQrCode(qrImage)
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to upload QR code")
+      }
+
+      // Success message
+      toast({
+        title: "QR Code Uploaded",
+        description: "Payment QR code has been updated successfully",
+      })
+
+      // Close dialog and reset state
+      setIsQrDialogOpen(false)
+      setQrImage(null)
+      setPreviewUrl(null)
+    } catch (error) {
+      console.error("Failed to upload QR code:", error)
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload QR code",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Reset file input when dialog closes
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsQrDialogOpen(open)
+    if (!open) {
+      setQrImage(null)
+      setPreviewUrl(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
 
   // Update the dashboard component to match the backend data structure
 
@@ -330,9 +477,17 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of your restaurant's performance</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">Overview of your restaurant's performance</p>
+        </div>
+
+        {/* QR Code Upload Button */}
+        <Button onClick={() => setIsQrDialogOpen(true)} variant="outline" className="flex items-center gap-2">
+          <QrCode className="h-4 w-4" />
+          <span>Update Payment QR</span>
+        </Button>
       </div>
 
       {isLoading ? (
@@ -596,6 +751,64 @@ export default function AdminDashboardPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* QR Code Upload Dialog */}
+      <Dialog open={isQrDialogOpen} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Update Payment QR Code</DialogTitle>
+            <DialogDescription>
+              Upload a new QR code image for payment. This will replace the current QR code.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {currentQrUrl && !previewUrl && (
+              <div>
+                <p className="text-sm font-medium mb-2">Current QR Code:</p>
+                <div className="flex justify-center border rounded-md p-4 bg-muted/20">
+                  <div className="relative w-48 h-48">
+                    <img
+                      src={currentQrUrl || "/placeholder.svg"}
+                      alt="Current QR Code"
+                      className="object-contain w-full h-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label htmlFor="qr-image">QR Code Image</Label>
+              <Input id="qr-image" type="file" accept="image/*" onChange={handleQrImageChange} ref={fileInputRef} />
+              <p className="text-xs text-muted-foreground">Recommended: Square image, max 2MB, PNG or JPG format</p>
+            </div>
+
+            {previewUrl && (
+              <div>
+                <p className="text-sm font-medium mb-2">Preview:</p>
+                <div className="flex justify-center border rounded-md p-4 bg-muted/20">
+                  <div className="relative w-48 h-48">
+                    <img
+                      src={previewUrl || "/placeholder.svg"}
+                      alt="QR Code Preview"
+                      className="object-contain w-full h-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={isUploading}>
+              Cancel
+            </Button>
+            <Button onClick={handleQrUpload} disabled={!qrImage || isUploading} className="gap-2">
+              {isUploading && <Upload className="h-4 w-4 animate-spin" />}
+              {isUploading ? "Uploading..." : "Upload QR Code"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

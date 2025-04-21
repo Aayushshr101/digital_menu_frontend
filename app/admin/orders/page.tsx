@@ -3,7 +3,7 @@
 import { Label } from "@/components/ui/label"
 
 import { useState, useEffect } from "react"
-import { Eye, MoreHorizontal, Printer, Search, Trash } from "lucide-react"
+import { Eye, MoreHorizontal, Search, Trash, CreditCard, QrCode } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { orderApi, tableApi, type Order, type OrderStatusInput } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 import React from "react"
+import { Badge } from "@/components/ui/badge"
 
 export default function AdminOrdersPage() {
   const { toast } = useToast()
@@ -35,6 +36,7 @@ export default function AdminOrdersPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
   const [currentOrderDetails, setCurrentOrderDetails] = useState<Order | null>(null)
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false)
@@ -120,7 +122,7 @@ export default function AdminOrdersPage() {
     return orderNumber.includes(searchTerm.toLowerCase()) || tableInfo.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
-  // Update order status
+  // Update the handleUpdateStatus function to also update payment status when order is marked complete
   const handleUpdateStatus = async () => {
     if (!currentOrder) return
 
@@ -131,10 +133,25 @@ export default function AdminOrdersPage() {
 
       await orderApi.updateOrderStatus(currentOrder._id, statusData)
 
-      toast({
-        title: "Success",
-        description: "Order status updated successfully",
-      })
+      // If the order is being marked as complete, also update the payment status to paid
+      if (currentOrder.status === "complete" && currentOrder.payment_status !== "paid") {
+        // Create a partial order update with just the payment status
+        const updateData = {
+          payment_status: "paid",
+        }
+
+        await orderApi.updateOrder(currentOrder._id, updateData)
+
+        toast({
+          title: "Success",
+          description: "Order status updated and payment marked as paid",
+        })
+      } else {
+        toast({
+          title: "Success",
+          description: "Order status updated successfully",
+        })
+      }
 
       // Refresh orders
       fetchOrders()
@@ -145,6 +162,37 @@ export default function AdminOrdersPage() {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to update order status",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Update payment status
+  const handleUpdatePaymentStatus = async () => {
+    if (!currentOrder) return
+
+    try {
+      // Create a partial order update with just the payment status
+      const updateData = {
+        payment_status: currentOrder.payment_status === "pending" ? "paid" : "pending",
+      }
+
+      await orderApi.updateOrder(currentOrder._id, updateData)
+
+      toast({
+        title: "Success",
+        description: "Payment status updated successfully",
+      })
+
+      // Refresh orders
+      fetchOrders()
+
+      setIsPaymentDialogOpen(false)
+    } catch (error) {
+      console.error("Failed to update payment status:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update payment status",
         variant: "destructive",
       })
     }
@@ -200,6 +248,11 @@ export default function AdminOrdersPage() {
     setIsStatusDialogOpen(true)
   }
 
+  const openPaymentDialog = (order: Order) => {
+    setCurrentOrder(order)
+    setIsPaymentDialogOpen(true)
+  }
+
   const openDeleteDialog = (order: Order) => {
     setCurrentOrder(order)
     setIsDeleteDialogOpen(true)
@@ -224,6 +277,52 @@ export default function AdminOrdersPage() {
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getPaymentMethodBadge = (method: string) => {
+    switch (method) {
+      case "cash":
+        return (
+          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 flex items-center gap-1">
+            <CreditCard className="h-3 w-3" /> Cash
+          </Badge>
+        )
+      case "online_payment":
+        return (
+          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 flex items-center gap-1">
+            <QrCode className="h-3 w-3" /> QR Code
+          </Badge>
+        )
+      default:
+        return (
+          <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">
+            Unknown
+          </Badge>
+        )
+    }
+  }
+
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case "paid":
+        return (
+          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+            Paid
+          </Badge>
+        )
+      case "pending":
+        return (
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+            Pending
+          </Badge>
+        )
+      default:
+        return (
+          <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">
+            Unknown
+          </Badge>
+        )
     }
   }
 
@@ -333,13 +432,14 @@ export default function AdminOrdersPage() {
                       <TableHead>Date & Time</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredOrders.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center">
+                        <TableCell colSpan={7} className="text-center">
                           No orders found
                         </TableCell>
                       </TableRow>
@@ -357,6 +457,12 @@ export default function AdminOrdersPage() {
                               {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                             </div>
                           </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              {getPaymentMethodBadge(order.payment_method || "cash")}
+                              {getPaymentStatusBadge(order.payment_status || "pending")}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -372,8 +478,8 @@ export default function AdminOrdersPage() {
                                 <DropdownMenuItem onClick={() => openStatusDialog(order)}>
                                   <Eye className="mr-2 h-4 w-4" /> Update Status
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Printer className="mr-2 h-4 w-4" /> Print Receipt
+                                <DropdownMenuItem onClick={() => openPaymentDialog(order)}>
+                                  <CreditCard className="mr-2 h-4 w-4" /> Update Payment
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => openDeleteDialog(order)}>
                                   <Trash className="mr-2 h-4 w-4" /> Delete
@@ -452,6 +558,20 @@ export default function AdminOrdersPage() {
                 </div>
               )}
 
+              {/* Payment Information */}
+              {currentOrderDetails && (
+                <div className="flex justify-between mb-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Payment Method</p>
+                    {getPaymentMethodBadge(currentOrderDetails.payment_method || "cash")}
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Payment Status</p>
+                    {getPaymentStatusBadge(currentOrderDetails.payment_status || "pending")}
+                  </div>
+                </div>
+              )}
+
               {currentOrderDetails && (
                 <div className="border rounded-md p-4 mb-4">
                   <h3 className="font-medium mb-2">Order Items</h3>
@@ -500,7 +620,6 @@ export default function AdminOrdersPage() {
             <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
               Close
             </Button>
-            <Button>Print Receipt</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -554,6 +673,48 @@ export default function AdminOrdersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Payment Status Dialog */}
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Payment Status</DialogTitle>
+            <DialogDescription>Change the payment status of order {currentOrder?.order_number}</DialogDescription>
+          </DialogHeader>
+          {currentOrder && (
+            <div className="py-4">
+              <div className="grid gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Payment Method</p>
+                  <div className="mt-1">{getPaymentMethodBadge(currentOrder.payment_method || "cash")}</div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Current Payment Status</p>
+                  <div className="mt-1">{getPaymentStatusBadge(currentOrder.payment_status || "pending")}</div>
+                </div>
+
+                <div className="pt-2">
+                  <p className="font-medium">
+                    Mark payment as {currentOrder.payment_status === "pending" ? "Paid" : "Pending"}?
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This will update the payment status for this order.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdatePaymentStatus}>
+              Mark as {currentOrder?.payment_status === "pending" ? "Paid" : "Pending"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
@@ -592,4 +753,3 @@ export default function AdminOrdersPage() {
     </div>
   )
 }
-
