@@ -513,9 +513,9 @@ export default function AdminDashboardPage() {
               <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Rs{dashboardStats?.totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">Rs {dashboardStats?.totalRevenue.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">
-                {dashboardStats?.revenueGrowth > 0 ? "+" : " "}
+                {dashboardStats?.revenueGrowth > 0 ? "+" : ""}
                 {dashboardStats?.revenueGrowth.toFixed(1)}% from last month
               </p>
             </CardContent>
@@ -537,7 +537,7 @@ export default function AdminDashboardPage() {
               <CardTitle className="text-sm font-medium">Average Order Value</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Rs{dashboardStats?.avgOrderValue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">Rs {dashboardStats?.avgOrderValue.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">
                 {/* We don't have AOV growth in the backend data */}
                 Based on {dashboardStats?.totalOrders} orders
