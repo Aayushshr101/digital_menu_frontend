@@ -27,7 +27,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { orderApi, menuApi, tableApi, type Order, type MenuItem, type Table } from "@/lib/api"
+import { orderApi, menuApi, tableApi, type Order, type MenuItem, type Table, getQrCode } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 
 // Add a polling interval constant near the top of the component
@@ -188,47 +188,40 @@ export default function OrderDetailsPage() {
     return () => clearInterval(intervalId)
   }, [order, orderId, toast])
 
-  // Add this useEffect to find the current QR code when dialog opens
+  // Add this useEffect to fetch the QR code when dialog opens
   useEffect(() => {
     if (!isQrDialogOpen) return
 
-    // Function to check if a file exists
-    const checkFileExists = async (filename: string) => {
+    const fetchQrCode = async () => {
       try {
-        const response = await fetch(`/${filename}?t=${Date.now()}`, { method: "HEAD" })
-        return response.ok
-      } catch (error) {
-        return false
-      }
-    }
+        const result = await getQrCode()
 
-    // Check for common image extensions
-    const checkQrCode = async () => {
-      const extensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]
-
-      for (const ext of extensions) {
-        const exists = await checkFileExists(`payment-qr${ext}`)
-        if (exists) {
-          setQrCodeUrl(`/payment-qr${ext}?t=${Date.now()}`)
-          return
+        if (result.success && result.imageUrl) {
+          setQrCodeUrl(result.imageUrl)
+        } else {
+          // Fallback to generic QR code if no custom one is found
+          setQrCodeUrl(
+            `/generic-payment-qr.png?height=200&width=200&query=QR code for payment of Rs${order?.total_amount.toFixed(2)}`,
+          )
         }
+      } catch (error) {
+        console.error("Error fetching QR code:", error)
+        // Fallback to generic QR code on error
+        setQrCodeUrl(
+          `/generic-payment-qr.png?height=200&width=200&query=QR code for payment of Rs${order?.total_amount.toFixed(2)}`,
+        )
       }
-
-      // Fallback to generic QR code if no custom one is found
-      setQrCodeUrl(
-        `/generic-payment-qr.png?height=200&width=200&query=QR code for payment of Rs${order?.total_amount.toFixed(2)}`,
-      )
     }
 
-    checkQrCode()
+    fetchQrCode()
   }, [isQrDialogOpen, order?.total_amount])
 
   // Fetch menu items for adding to order
   const fetchMenuItems = async () => {
     try {
       // Fetch categories
-      // const categoriesResponse = await fetch("http://localhost:5000/api/v1/categories")
-      const categoriesResponse = await fetch("https://digital-menu-backend-8a4t.onrender.com/api/v1/categories")
+      const categoriesResponse = await fetch("http://localhost:5000/api/v1/categories")
+      // const categoriesResponse = await fetch("https://digital-menu-backend-8a4t.onrender.com/api/v1/categories")
       const categoriesData = await categoriesResponse.json()
 
       setCategories(

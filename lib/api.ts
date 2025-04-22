@@ -533,34 +533,30 @@ export const paymentApi = {
 // Add this function to the existing api.ts file
 
 // Function to upload QR code image
-export const uploadQrCode = async (
-  file: File,
-): Promise<{ success: boolean; imageUrl?: string; filename?: string; error?: string }> => {
+export const uploadQrCode = async (file: File): Promise<{ success: boolean; imageUrl?: string; error?: string }> => {
   try {
-    // Create a FormData object
     const formData = new FormData()
-    formData.append("qrImage", file)
+    // Use 'image' as the key to match backend expectation
+    formData.append("image", file)
 
-    // Send the file to our API route
-    const response = await fetch("/api/upload-qr", {
+    console.log("Uploading QR code to backend")
+
+    const response = await fetch(`${API_BASE_URL}/qr/upload`, {
       method: "POST",
       body: formData,
+      credentials: "include",
+      // Don't set Content-Type header for FormData
     })
 
     if (!response.ok) {
-      throw new Error(`Upload failed with status: ${response.status}`)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `Upload failed with status: ${response.status}`)
     }
 
     const data = await response.json()
-
-    if (!data.success) {
-      throw new Error(data.error || "Upload failed")
-    }
-
     return {
-      success: true,
-      imageUrl: data.imageUrl,
-      filename: data.filename,
+      success: data.success,
+      imageUrl: data.data?.imageUrl,
     }
   } catch (error) {
     console.error("Error uploading QR code:", error)
@@ -570,3 +566,38 @@ export const uploadQrCode = async (
     }
   }
 }
+
+// Function to get current QR code
+export const getQrCode = async (): Promise<{ success: boolean; imageUrl?: string; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/qr`, {
+      credentials: "include",
+    })
+
+    // If 404, it means no QR code is found, which is not an error
+    if (response.status === 404) {
+      return {
+        success: false,
+        imageUrl: undefined,
+      }
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `Failed with status: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return {
+      success: data.success,
+      imageUrl: data.data?.imageUrl,
+    }
+  } catch (error) {
+    console.error("Error fetching QR code:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch QR code",
+    }
+  }
+}
+

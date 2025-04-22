@@ -227,8 +227,8 @@ export default function OrderDetailsPage() {
   const fetchMenuItems = async () => {
     try {
       // Fetch categories
-      // const categoriesResponse = await fetch("http://localhost:5000/api/v1/categories")
-      const categoriesResponse = await fetch("https://digital-menu-backend-8a4t.onrender.com/api/v1/categories")
+      const categoriesResponse = await fetch("http://localhost:5000/api/v1/categories")
+      // const categoriesResponse = await fetch("https://digital-menu-backend-8a4t.onrender.com/api/v1/categories")
       const categoriesData = await categoriesResponse.json()
 
       setCategories(

@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { QrCode, Upload } from "lucide-react"
-import { statsApi, uploadQrCode } from "@/lib/api"
+import { statsApi, uploadQrCode, getQrCode } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 
 // Import FusionCharts
@@ -108,35 +108,25 @@ export default function AdminDashboardPage() {
     fetchDashboardData()
   }, [toast])
 
-  // Add this useEffect to find the current QR code
+  // Add this useEffect to fetch the current QR code
   useEffect(() => {
-    // Function to check if a file exists
-    const checkFileExists = async (filename: string) => {
+    const fetchQrCode = async () => {
       try {
-        const response = await fetch(`/${filename}?t=${Date.now()}`, { method: "HEAD" })
-        return response.ok
-      } catch (error) {
-        return false
-      }
-    }
+        const result = await getQrCode()
 
-    // Check for common image extensions
-    const checkQrCode = async () => {
-      const extensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]
-
-      for (const ext of extensions) {
-        const exists = await checkFileExists(`payment-qr${ext}`)
-        if (exists) {
-          setCurrentQrUrl(`/payment-qr${ext}?t=${Date.now()}`)
-          return
+        if (result.success && result.imageUrl) {
+          setCurrentQrUrl(result.imageUrl)
+        } else {
+          setCurrentQrUrl(null)
         }
+      } catch (error) {
+        console.error("Error fetching QR code:", error)
+        setCurrentQrUrl(null)
       }
-
-      setCurrentQrUrl(null)
     }
 
-    checkQrCode()
-  }, [isQrDialogOpen]) // Re-check when dialog closes
+    fetchQrCode()
+  }, [isQrDialogOpen]) // Re-fetch when dialog closes
 
   // Handle QR code image change
   const handleQrImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
