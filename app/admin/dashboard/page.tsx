@@ -260,7 +260,7 @@ export default function AdminDashboardPage() {
         lineThickness: "2",
         showValues: "0",
         formatNumberScale: "0",
-        numberPrefix: "Rs",
+        numberPrefix: "Rs ",
       },
       data:
         dailyRevenue?.map((item) => ({
@@ -285,7 +285,7 @@ export default function AdminDashboardPage() {
         theme: "fusion",
         showValues: "1",
         formatNumberScale: "0",
-        numberPrefix: "Rs",
+        numberPrefix: "Rs ",
       },
       data:
         weeklyRevenue?.map((item) => ({
@@ -311,7 +311,7 @@ export default function AdminDashboardPage() {
         lineThickness: "2",
         showValues: "0",
         formatNumberScale: "0",
-        numberPrefix: "Rs",
+        numberPrefix: "Rs ",
       },
       data:
         monthlyRevenue?.map((item) => ({
@@ -360,7 +360,7 @@ export default function AdminDashboardPage() {
         decimals: "1",
         useDataPlotColorForLabels: "1",
         theme: "fusion",
-        numberPrefix: "Rs",
+        numberPrefix: "Rs ",
       },
       data:
         revenueByCategory?.map((item) => ({
@@ -385,7 +385,7 @@ export default function AdminDashboardPage() {
         theme: "fusion",
         showValues: "0",
         formatNumberScale: "0",
-        numberPrefix: "Rs",
+        numberPrefix: "Rs ",
       },
       categories: [
         {
