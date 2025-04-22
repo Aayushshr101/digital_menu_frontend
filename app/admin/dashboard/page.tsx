@@ -515,7 +515,7 @@ export default function AdminDashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">Rs{dashboardStats?.totalRevenue.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">
-                {dashboardStats?.revenueGrowth > 0 ? "+" : ""}
+                {dashboardStats?.revenueGrowth > 0 ? "+" : " "}
                 {dashboardStats?.revenueGrowth.toFixed(1)}% from last month
               </p>
             </CardContent>
