@@ -367,7 +367,7 @@ export default function MenuPage() {
                           <div>
                             <p className="font-medium">{item.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              Rs{item.price.toFixed(2)} x {item.quantity}
+                              Rs {item.price.toFixed(2)} x {item.quantity}
                             </p>
                             {Object.keys(item.customOptions || {}).length > 0 && (
                               <div className="text-xs text-muted-foreground mt-1">
@@ -412,7 +412,7 @@ export default function MenuPage() {
                       <Separator />
                       <div className="flex justify-between font-bold">
                         <span>Total:</span>
-                        <span>Rs{totalPrice.toFixed(2)}</span>
+                        <span>Rs {totalPrice.toFixed(2)}</span>
                       </div>
                       <Button className="w-full" onClick={placeOrder} disabled={isPlacingOrder}>
                         {isPlacingOrder ? "Placing Order..." : "Place Order"}
@@ -476,7 +476,7 @@ export default function MenuPage() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <p className="font-bold">Rs{item.price.toFixed(2)}</p>
+                          <p className="font-bold">Rs {item.price.toFixed(2)}</p>
                           {item.is_available === false && (
                             <p className="text-sm text-red-500 mt-1">Currently unavailable</p>
                           )}
@@ -524,7 +524,7 @@ export default function MenuPage() {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <p className="font-bold">Rs{item.price.toFixed(2)}</p>
+                        <p className="font-bold">Rs {item.price.toFixed(2)}</p>
                         {item.is_available === false && (
                           <p className="text-sm text-red-500 mt-1">Currently unavailable</p>
                         )}
@@ -569,7 +569,7 @@ export default function MenuPage() {
             {/* Display base price and current total at the top */}
             <div className="flex justify-between items-center pb-2 border-b">
               <span className="text-sm text-muted-foreground">Base price:</span>
-              <span>Rs{currentCustomizeItem?.price.toFixed(2)}</span>
+              <span>Rs {currentCustomizeItem?.price.toFixed(2)}</span>
             </div>
 
             {currentCustomizeItem?.customization_options?.map((group, groupIndex) => (
@@ -592,7 +592,7 @@ export default function MenuPage() {
                         </label>
                       </div>
                       {option.price_addition > 0 && (
-                        <span className="text-sm text-muted-foreground">+Rs{option.price_addition.toFixed(2)}</span>
+                        <span className="text-sm text-muted-foreground">+Rs {option.price_addition.toFixed(2)}</span>
                       )}
                     </div>
                   ))}
@@ -605,12 +605,12 @@ export default function MenuPage() {
               {customizationPrice > 0 && (
                 <div className="flex justify-between text-sm">
                   <span>Additional cost:</span>
-                  <span>Rs{customizationPrice.toFixed(2)}</span>
+                  <span>Rs {customizationPrice.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between font-medium text-lg mt-1">
                 <span>Total price:</span>
-                <span>Rs{((currentCustomizeItem?.price || 0) + customizationPrice).toFixed(2)}</span>
+                <span>Rs {((currentCustomizeItem?.price || 0) + customizationPrice).toFixed(2)}</span>
               </div>
             </div>
           </div>
