@@ -93,7 +93,7 @@ export default function AdminOrdersPage() {
 
       // Sort orders by creation date (newest first)
       const sortedOrders = [...ordersData.orders].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       )
 
       setOrders(sortedOrders)
@@ -448,7 +448,7 @@ export default function AdminOrdersPage() {
                         <TableRow key={order._id}>
                           <TableCell className="font-medium">{order.order_number}</TableCell>
                           <TableCell>{getTableNumber(order.table)}</TableCell>
-                          <TableCell>{formatDate(order.created_at)}</TableCell>
+                          <TableCell>{formatDate(order.createdAt)}</TableCell>
                           <TableCell>Rs{order.total_amount.toFixed(2)}</TableCell>
                           <TableCell>
                             <div
@@ -545,7 +545,7 @@ export default function AdminOrdersPage() {
                 <div className="flex justify-between mb-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Date & Time</p>
-                    <p>{formatDate(currentOrderDetails.created_at)}</p>
+                    <p>{formatDate(currentOrderDetails.createdAt)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
