@@ -177,12 +177,31 @@ export default function AdminOrdersPage() {
     }
   }, [statusFilter, tableFilter, isLoading])
 
-  // Filter orders by search term
+  // Update the getTableNumber function to handle null/deleted tables
+  const getTableNumber = (table: Table | string | undefined | null) => {
+    if (!table) return "Table Deleted"
+    if (typeof table === "string") {
+      const foundTable = tables.find((t) => t._id === table)
+      return foundTable ? `Table ${foundTable.table_number}` : "Table Deleted"
+    }
+    return `Table ${table.table_number}`
+  }
+
+  // Update the filter orders function to handle null tables
   const filteredOrders = orders.filter((order) => {
     const orderNumber = order.order_number.toLowerCase()
-    const tableInfo = typeof order.table === "string" ? order.table : `Table ${order.table.table_number}`
+    const orderId = order._id.toLowerCase()
+    let tableInfo = "Table Deleted"
 
-    return orderNumber.includes(searchTerm.toLowerCase()) || tableInfo.toLowerCase().includes(searchTerm.toLowerCase())
+    if (order.table) {
+      tableInfo = typeof order.table === "string" ? order.table : `Table ${order.table.table_number}`
+    }
+
+    return (
+      orderNumber.includes(searchTerm.toLowerCase()) ||
+      orderId.includes(searchTerm.toLowerCase()) ||
+      tableInfo.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   })
 
   // Update the handleUpdateStatus function to also update payment status when order is marked complete
@@ -389,7 +408,7 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const getTableNumber = (table: Table | string | undefined) => {
+  const getTableNumberDisplay = (table: Table | string | undefined) => {
     if (!table) return "Unknown Table"
     if (typeof table === "string") {
       const foundTable = tables.find((t) => t._id === table)
@@ -492,7 +511,7 @@ export default function AdminOrdersPage() {
                   {/* Find the TableHeader component and add this after the Actions column */}
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order Id</TableHead>
+                      <TableHead>Order #</TableHead>
                       <TableHead>Table</TableHead>
                       <TableHead>Date & Time</TableHead>
                       <TableHead>Total</TableHead>
@@ -509,11 +528,12 @@ export default function AdminOrdersPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
+                      // In the TableRow mapping, add a null check for order.table
                       filteredOrders.map((order) => (
                         // Also add the same column to the TableRow to maintain alignment
                         <TableRow key={order._id}>
                           <TableCell className="font-medium">{order._id}</TableCell>
-                          <TableCell>{getTableNumber(order.table)}</TableCell>
+                          <TableCell>{getTableNumberDisplay(order.table)}</TableCell>
                           <TableCell>{formatDate(order.createdAt)}</TableCell>
                           <TableCell>Rs{order.total_amount.toFixed(2)}</TableCell>
                           <TableCell>
@@ -598,7 +618,7 @@ export default function AdminOrdersPage() {
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
-              {currentOrderDetails?.order_number} - {currentOrderDetails && getTableNumber(currentOrderDetails.table)}
+              {currentOrderDetails?._id} - {currentOrderDetails && getTableNumberDisplay(currentOrderDetails.table)}
             </DialogDescription>
           </DialogHeader>
           {isLoadingOrderDetails ? (
@@ -696,7 +716,7 @@ export default function AdminOrdersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Update Order Status</DialogTitle>
-            <DialogDescription>Change the status of order {currentOrder?.order_number}</DialogDescription>
+            <DialogDescription>Change the status of order {currentOrder?._id}</DialogDescription>
           </DialogHeader>
           {currentOrder && (
             <div className="py-4">
@@ -793,10 +813,10 @@ export default function AdminOrdersPage() {
           {currentOrder && (
             <div className="py-4">
               <p>
-                <strong>Order:</strong> {currentOrder.order_number}
+                <strong>Order:</strong> {currentOrder._id}
               </p>
               <p>
-                <strong>Table:</strong> {getTableNumber(currentOrder.table)}
+                <strong>Table:</strong> {getTableNumberDisplay(currentOrder.table)}
               </p>
               <p>
                 <strong>Total:</strong> Rs{currentOrder.total_amount.toFixed(2)}
