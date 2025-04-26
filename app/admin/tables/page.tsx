@@ -303,14 +303,6 @@ export default function AdminTablesPage() {
                         {table.status.charAt(0).toUpperCase() + table.status.slice(1)}
                       </div>
                     </div>
-                    {table.current_order && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Current Order:</span>
-                        <span className="text-xs">
-                          {typeof table.current_order === "string" ? table.current_order : table.current_order._id}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end">
@@ -454,4 +446,3 @@ export default function AdminTablesPage() {
     </div>
   )
 }
-
