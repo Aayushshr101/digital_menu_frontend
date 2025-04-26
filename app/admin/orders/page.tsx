@@ -492,7 +492,7 @@ export default function AdminOrdersPage() {
                   {/* Find the TableHeader component and add this after the Actions column */}
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order #</TableHead>
+                      <TableHead>Order Id</TableHead>
                       <TableHead>Table</TableHead>
                       <TableHead>Date & Time</TableHead>
                       <TableHead>Total</TableHead>
@@ -512,7 +512,7 @@ export default function AdminOrdersPage() {
                       filteredOrders.map((order) => (
                         // Also add the same column to the TableRow to maintain alignment
                         <TableRow key={order._id}>
-                          <TableCell className="font-medium">{order.order_number}</TableCell>
+                          <TableCell className="font-medium">{order._id}</TableCell>
                           <TableCell>{getTableNumber(order.table)}</TableCell>
                           <TableCell>{formatDate(order.createdAt)}</TableCell>
                           <TableCell>Rs{order.total_amount.toFixed(2)}</TableCell>
