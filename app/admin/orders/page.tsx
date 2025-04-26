@@ -25,6 +25,9 @@ import { useToast } from "@/components/ui/use-toast"
 import React from "react"
 import { Badge } from "@/components/ui/badge"
 
+// Add a polling interval constant near the top of the component
+const POLLING_INTERVAL = 5000 // Poll every 5 seconds
+
 export default function AdminOrdersPage() {
   const { toast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
@@ -40,6 +43,8 @@ export default function AdminOrdersPage() {
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
   const [currentOrderDetails, setCurrentOrderDetails] = useState<Order | null>(null)
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false)
+  // Add this state variable with the other state declarations
+  const [isPolling, setIsPolling] = useState(false)
 
   // Fetch orders and tables on component mount
   useEffect(() => {
@@ -71,6 +76,64 @@ export default function AdminOrdersPage() {
 
     fetchData()
   }, [toast])
+
+  // Add this useEffect for polling after the existing useEffect that fetches initial data
+  useEffect(() => {
+    // Don't set up polling until we have the initial orders data
+    if (isLoading) {
+      return
+    }
+
+    // Set up polling interval
+    const intervalId = setInterval(async () => {
+      try {
+        setIsPolling(true)
+
+        // Fetch orders based on current filters
+        let ordersData: { orders: Order[] }
+
+        if (statusFilter !== "all" && statusFilter) {
+          // Fetch orders by status
+          ordersData = await orderApi.getOrdersByStatus(statusFilter)
+        } else if (tableFilter !== "all" && tableFilter) {
+          // Fetch orders by table
+          ordersData = await orderApi.getOrdersByTable(tableFilter)
+        } else {
+          // Fetch all orders
+          ordersData = await orderApi.getAllOrders()
+        }
+
+        // Sort orders by creation date (newest first)
+        const sortedOrders = [...ordersData.orders].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )
+
+        // Check if there are any changes in orders
+        const currentOrderIds = orders.map((order) => order._id).join(",")
+        const newOrderIds = sortedOrders.map((order) => order._id).join(",")
+
+        // Only update state if there are changes (new orders, status changes, etc.)
+        if (currentOrderIds !== newOrderIds || JSON.stringify(orders) !== JSON.stringify(sortedOrders)) {
+          setOrders(sortedOrders)
+
+          // Show a subtle notification about the update
+          toast({
+            title: "Orders Updated",
+            description: "Order list has been refreshed with the latest data.",
+            variant: "default",
+          })
+        }
+      } catch (error) {
+        console.error("Failed to refresh orders:", error)
+        // Don't show error toast to avoid disrupting the user experience
+      } finally {
+        setIsPolling(false)
+      }
+    }, POLLING_INTERVAL)
+
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId)
+  }, [isLoading, statusFilter, tableFilter, orders, toast])
 
   // Fetch orders based on filters
   const fetchOrders = async () => {
@@ -425,6 +488,8 @@ export default function AdminOrdersPage() {
                 </div>
               ) : (
                 <Table>
+                  {/* Add this to the Table component to show a loading indicator during polling */}
+                  {/* Find the TableHeader component and add this after the Actions column */}
                   <TableHeader>
                     <TableRow>
                       <TableHead>Order #</TableHead>
@@ -445,6 +510,7 @@ export default function AdminOrdersPage() {
                       </TableRow>
                     ) : (
                       filteredOrders.map((order) => (
+                        // Also add the same column to the TableRow to maintain alignment
                         <TableRow key={order._id}>
                           <TableCell className="font-medium">{order.order_number}</TableCell>
                           <TableCell>{getTableNumber(order.table)}</TableCell>
