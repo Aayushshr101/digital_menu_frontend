@@ -6,19 +6,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
-import {
-  ArrowLeft,
-  Home,
-  Plus,
-  Minus,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  ChefHat,
-  Utensils,
-  QrCode,
-  Bell,
-} from "lucide-react"
+import { ArrowLeft, Home, Plus, Minus, Clock, CheckCircle, AlertCircle, ChefHat, Utensils, QrCode } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { orderApi, menuApi, tableApi, type Order, type MenuItem, type Table, getQrCode } from "@/lib/api"
+import { orderApi, menuApi, tableApi, categoryApi, type Order, type MenuItem, type Table, getQrCode } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 
 // Add a polling interval constant near the top of the component
@@ -61,7 +49,6 @@ export default function OrderDetailsPage() {
     }[]
   >([])
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false)
-  const [isWaiterCalled, setIsWaiterCalled] = useState(false)
 
   // Add a new state variable to track if we're refreshing data
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -220,12 +207,9 @@ export default function OrderDetailsPage() {
   const fetchMenuItems = async () => {
     try {
       // Fetch categories
-      const categoriesResponse = await fetch("http://localhost:5000/api/v1/categories")
-      // const categoriesResponse = await fetch("https://digital-menu-backend-8a4t.onrender.com/api/v1/categories")
-      const categoriesData = await categoriesResponse.json()
-
+      const categoriesResponse = await categoryApi.getAllCategories()
       setCategories(
-        categoriesData.categories.map((category: any) => ({
+        categoriesResponse.categories.map((category: any) => ({
           _id: category._id,
           name: category.name,
         })),
@@ -256,7 +240,7 @@ export default function OrderDetailsPage() {
           })
         } else {
           // Handle items with valid category
-          const categoryId = item.category._id
+          const categoryId = typeof item.category === "string" ? item.category : item.category._id
           if (!groupedItems[categoryId]) {
             groupedItems[categoryId] = []
           }
@@ -370,6 +354,7 @@ export default function OrderDetailsPage() {
     })
   }
 
+  // Add this function to handle adding items to cart
   const addToCart = (
     item: MenuItem,
     customOptions?: Record<string, { name: string; price: number }>,
@@ -451,7 +436,7 @@ export default function OrderDetailsPage() {
       // Calculate new total
       const updatedTotal = order.total_amount + newItemsTotal
 
-      // Update order
+      // First update the order items and total
       const updateData = {
         items: updatedItems,
         total_amount: updatedTotal,
@@ -459,14 +444,32 @@ export default function OrderDetailsPage() {
 
       const { order: updatedOrder } = await orderApi.updateOrder(order._id, updateData)
 
-      // Show success message
-      toast({
-        title: "Order Updated",
-        description: "Your order has been updated successfully!",
-      })
+      // If order was already served, change status back to pending with a separate API call
+      if (order.status === "served") {
+        const statusUpdateData = {
+          status: "pending",
+        }
 
-      // Update local state
-      setOrder(updatedOrder)
+        const { order: statusUpdatedOrder } = await orderApi.updateOrderStatus(order._id, statusUpdateData)
+
+        // Update the local state with the status-updated order
+        setOrder(statusUpdatedOrder)
+
+        // Show success message with status change notification
+        toast({
+          title: "Order Updated",
+          description: "Your order has been updated and sent back to the kitchen for preparation.",
+        })
+      } else {
+        // Update local state with the updated order
+        setOrder(updatedOrder)
+
+        // Show regular success message
+        toast({
+          title: "Order Updated",
+          description: "Your order has been updated successfully!",
+        })
+      }
 
       // Clear cart
       setCart([])
@@ -483,21 +486,6 @@ export default function OrderDetailsPage() {
     } finally {
       setIsUpdating(false)
     }
-  }
-
-  const callWaiter = () => {
-    // In a real application, this would send a notification to the staff
-    // For now, we'll just show a toast and update the state
-    toast({
-      title: "Waiter Called",
-      description: "A waiter will be with you shortly.",
-    })
-    setIsWaiterCalled(true)
-
-    // Reset the state after 30 seconds
-    setTimeout(() => {
-      setIsWaiterCalled(false)
-    }, 30000)
   }
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0)
@@ -659,17 +647,6 @@ export default function OrderDetailsPage() {
                     <Plus className="mr-2 h-4 w-4" /> Add More Items
                   </Button>
                 )}
-
-                {/* Call Waiter Button */}
-                <Button
-                  variant={isWaiterCalled ? "outline" : "secondary"}
-                  className="w-full"
-                  onClick={callWaiter}
-                  disabled={isWaiterCalled}
-                >
-                  <Bell className="mr-2 h-4 w-4" />
-                  {isWaiterCalled ? "Waiter Called" : "Call Waiter for Payment"}
-                </Button>
               </CardFooter>
             </Card>
           </div>
@@ -1026,9 +1003,6 @@ export default function OrderDetailsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsQrDialogOpen(false)}>
               Close
-            </Button>
-            <Button onClick={callWaiter}>
-              <Bell className="mr-2 h-4 w-4" /> Call Waiter
             </Button>
           </DialogFooter>
         </DialogContent>
