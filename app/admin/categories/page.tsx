@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Edit, MoreHorizontal, Plus, Trash, ArrowUp, ArrowDown } from "lucide-react"
+import { Edit, MoreHorizontal, Plus, Trash } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,7 +35,6 @@ export default function AdminCategoriesPage() {
   const [newCategory, setNewCategory] = useState<Partial<CategoryInput> & { imageFile?: File }>({
     name: "",
     description: "",
-    display_order: 0,
     imageFile: undefined,
   })
 
@@ -50,15 +49,7 @@ export default function AdminCategoriesPage() {
     try {
       const { categories } = await categoryApi.getAllCategories()
 
-      // Sort categories by display_order if available
-      const sortedCategories = [...categories].sort((a, b) => {
-        if (a.display_order !== undefined && b.display_order !== undefined) {
-          return a.display_order - b.display_order
-        }
-        return 0
-      })
-
-      setCategories(sortedCategories)
+      setCategories(categories)
     } catch (error) {
       console.error("Failed to fetch categories:", error)
       toast({
@@ -87,7 +78,6 @@ export default function AdminCategoriesPage() {
       const categoryToAdd: CategoryInput = {
         name: newCategory.name,
         description: newCategory.description,
-        display_order: newCategory.display_order,
       }
 
       const { category } = await categoryApi.createCategory(categoryToAdd)
@@ -122,7 +112,6 @@ export default function AdminCategoriesPage() {
       setNewCategory({
         name: "",
         description: "",
-        display_order: 0,
         imageFile: undefined,
       })
       setIsAddDialogOpen(false)
@@ -145,7 +134,6 @@ export default function AdminCategoriesPage() {
       const categoryToUpdate: Partial<CategoryInput> = {
         name: currentCategory.name,
         description: currentCategory.description,
-        display_order: currentCategory.display_order,
       }
 
       await categoryApi.updateCategory(currentCategory._id, categoryToUpdate)
@@ -299,80 +287,6 @@ export default function AdminCategoriesPage() {
     }
   }
 
-  // Move category up in display order
-  const moveUp = async (category: Category, index: number) => {
-    if (index === 0) return // Already at the top
-
-    const prevCategory = categories[index - 1]
-
-    try {
-      // Swap display orders
-      const newOrder = prevCategory.display_order !== undefined ? prevCategory.display_order : index - 1
-
-      await categoryApi.updateCategory(category._id, {
-        ...category,
-        display_order: newOrder,
-      })
-
-      await categoryApi.updateCategory(prevCategory._id, {
-        ...prevCategory,
-        display_order: category.display_order !== undefined ? category.display_order : index,
-      })
-
-      // Refresh categories
-      fetchCategories()
-
-      toast({
-        title: "Success",
-        description: "Category order updated",
-      })
-    } catch (error) {
-      console.error("Failed to update category order:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update category order",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Move category down in display order
-  const moveDown = async (category: Category, index: number) => {
-    if (index === categories.length - 1) return // Already at the bottom
-
-    const nextCategory = categories[index + 1]
-
-    try {
-      // Swap display orders
-      const newOrder = nextCategory.display_order !== undefined ? nextCategory.display_order : index + 1
-
-      await categoryApi.updateCategory(category._id, {
-        ...category,
-        display_order: newOrder,
-      })
-
-      await categoryApi.updateCategory(nextCategory._id, {
-        ...nextCategory,
-        display_order: category.display_order !== undefined ? category.display_order : index,
-      })
-
-      // Refresh categories
-      fetchCategories()
-
-      toast({
-        title: "Success",
-        description: "Category order updated",
-      })
-    } catch (error) {
-      console.error("Failed to update category order:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update category order",
-        variant: "destructive",
-      })
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -406,16 +320,6 @@ export default function AdminCategoriesPage() {
                   id="description"
                   value={newCategory.description || ""}
                   onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="display_order">Display Order (Optional)</Label>
-                <Input
-                  id="display_order"
-                  type="number"
-                  min="0"
-                  value={newCategory.display_order}
-                  onChange={(e) => setNewCategory({ ...newCategory, display_order: Number.parseInt(e.target.value) })}
                 />
               </div>
               <div className="grid gap-2">
@@ -482,30 +386,8 @@ export default function AdminCategoriesPage() {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Display Order: {category.display_order !== undefined ? category.display_order : "Not set"}
-                  </p>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => moveUp(category, index)}
-                      disabled={index === 0}
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => moveDown(category, index)}
-                      disabled={index === categories.length - 1}
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <CardContent></CardContent>
+                <CardFooter className="flex justify-end">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
@@ -552,18 +434,6 @@ export default function AdminCategoriesPage() {
                   id="edit-description"
                   value={currentCategory.description || ""}
                   onChange={(e) => setCurrentCategory({ ...currentCategory, description: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-display_order">Display Order (Optional)</Label>
-                <Input
-                  id="edit-display_order"
-                  type="number"
-                  min="0"
-                  value={currentCategory.display_order !== undefined ? currentCategory.display_order : ""}
-                  onChange={(e) =>
-                    setCurrentCategory({ ...currentCategory, display_order: Number.parseInt(e.target.value) })
-                  }
                 />
               </div>
               <div className="grid gap-2">
@@ -629,4 +499,3 @@ export default function AdminCategoriesPage() {
     </div>
   )
 }
-
