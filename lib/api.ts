@@ -1,6 +1,6 @@
 // Base URL for API requests
-// const API_BASE_URL = "http://localhost:5000/api/v1"
-const API_BASE_URL = "https://digital-menu-backend-8a4t.onrender.com/api/v1"
+const API_BASE_URL = "http://localhost:5000/api/v1"
+// const API_BASE_URL = "https://digital-menu-backend-8a4t.onrender.com/api/v1"
 
 // Default fetch options
 const defaultOptions: RequestInit = {
