@@ -77,7 +77,7 @@ export default function Home() {
               <span className="font-bold text-xl text-gradient">FoodEase</span>
             </div>
             <p className="text-center text-sm text-gray-600">
-              © 2024 FoodEase. All rights reserved. Crafted with ❤️ for better dining experiences.
+              © 2025 FoodEase. All rights reserved. Crafted with ❤️ for better dining experiences.
             </p>
           </div>
         </div>
